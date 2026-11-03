@@ -164,7 +164,14 @@ jobs:
           install: mingw-w64-ucrt-x86_64-gcc
 
       - name: Install NSIS
-        run: choco install nsis --yes --no-progress
+        shell: pwsh
+        run: |
+          choco install nsis --yes --no-progress
+          $nsisRoot = Join-Path ${env:ProgramFiles(x86)} 'NSIS'
+          if (-not (Test-Path (Join-Path $nsisRoot 'makensis.exe'))) {
+            throw "NSIS compiler was not found at $nsisRoot"
+          }
+          Add-Content -Path $env:GITHUB_PATH -Value $nsisRoot
 
       - name: Install Wails CLI
         shell: pwsh
