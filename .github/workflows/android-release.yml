@@ -70,7 +70,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             while IFS= read -r line; do
               echo "::error title=Gradle build diagnostics::$line"
-            done < <(grep -E '(^e: |error:|What went wrong|Execution failed for task|Could not resolve|No matching|FAILURE:|BUILD FAILED)' "$LOG" | tail -n 12)
+            done < <(grep -E '(^e: |error:|What went wrong|Execution failed for task|Could not resolve|No matching|FAILURE:|BUILD FAILED|^> |^Caused by:|^\\* Exception|^\\* Try:)' "$LOG" | tail -n 30)
             exit 1
           fi
 
