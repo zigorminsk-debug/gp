@@ -55,7 +55,24 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Build debug APK (CI validation)
-        run: gradle --no-daemon --stacktrace assembleDebug
+        shell: bash
+        run: |
+          LOG="$RUNNER_TEMP/gradle-build.log"
+          if gradle --no-daemon --stacktrace assembleDebug >"$LOG" 2>&1; then
+            cat "$LOG"
+          else
+            cat "$LOG"
+            {
+              echo '### Gradle build failure details'
+              echo '```text'
+              tail -n 80 "$LOG"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r line; do
+              echo "::error title=Gradle build diagnostics::$line"
+            done < <(grep -E '(^e: |error:|What went wrong|Execution failed for task|Could not resolve|No matching|FAILURE:|BUILD FAILED)' "$LOG" | tail -n 12)
+            exit 1
+          fi
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
