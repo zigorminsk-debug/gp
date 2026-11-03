@@ -195,13 +195,22 @@ jobs:
         working-directory: windows
         shell: pwsh
         run: |
-          $installer = Get-ChildItem build/bin/*installer.exe | Select-Object -First 1
-          if (-not $installer) { throw "Wails NSIS setup.exe was not produced" }
-          $name = "gp-guide-$env:VERSION_NAME-windows-setup.exe"
-          $path = Join-Path $env:RUNNER_TEMP $name
-          Copy-Item $installer.FullName $path -Force
-          $hash = (Get-FileHash -Algorithm SHA256 $path).Hash.ToLowerInvariant()
-          [System.IO.File]::WriteAllText("$path.sha256", "$hash  $name", [System.Text.Encoding]::ASCII)
+          try {
+            $installer = Get-ChildItem -Path build/bin -File -Recurse | Where-Object { $_.Name -match 'installer\.exe$' } | Select-Object -First 1
+            if (-not $installer) {
+              $files = (Get-ChildItem -Path build -File -Recurse | ForEach-Object FullName) -join '; '
+              throw "Wails NSIS setup.exe was not produced. Files: $files"
+            }
+            $name = "gp-guide-$env:VERSION_NAME-windows-setup.exe"
+            $path = Join-Path $env:RUNNER_TEMP $name
+            Copy-Item -LiteralPath $installer.FullName -Destination $path -Force
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+            [System.IO.File]::WriteAllText("$path.sha256", "$hash  $name", [System.Text.Encoding]::ASCII)
+          } catch {
+            $message = $_.Exception.Message -replace '[\r\n]+', ' '
+            Write-Output "::error title=Windows setup packaging::$message"
+            exit 1
+          }
 
       - name: Upload Windows setup artifact
         uses: actions/upload-artifact@v7.0.2
