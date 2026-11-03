@@ -152,16 +152,16 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6.5.0
         with:
-          go-version: '1.24.x'
+          go-version: '1.26.x'
           cache: false
 
       - name: Set up GCC for Wails WebView2 bindings
         uses: msys2/setup-msys2@v2.33.0
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           cache: false
           update: true
-          install: mingw-w64-x86_64-gcc
+          install: mingw-w64-ucrt-x86_64-gcc
 
       - name: Install NSIS
         run: choco install nsis --yes --no-progress
