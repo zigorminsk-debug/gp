@@ -9,6 +9,10 @@ android {
     namespace 'by.gpguide.android'
     compileSdk 35
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId 'by.gpguide.android'
         minSdk 23
