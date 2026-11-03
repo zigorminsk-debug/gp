@@ -156,9 +156,10 @@ jobs:
           cache: false
 
       - name: Set up GCC for Wails WebView2 bindings
-        uses: msys2/setup-msys2@v2.9.0
+        uses: msys2/setup-msys2@v2.33.0
         with:
           msystem: MINGW64
+          cache: false
           update: true
           install: mingw-w64-x86_64-gcc
 
