@@ -1,51 +1,57 @@
-# GP Guide — справочник по групповой политике Windows Server
+# GP Guide — Windows Server Group Policy справочник
 
-Android-приложение на русском языке: офлайн-руководство по созданию и внедрению GPO, проверке результата, диагностике типовых ошибок и production rollout. В приложении есть поиск по справочнику и встроенная проверка GitHub Releases: APK скачивается в закрытое хранилище приложения и передаётся системному установщику Android, без браузера.
+Проект собирает два приложения из одного общего HTML-справочника `windows/frontend/index.html`:
 
-## Сборка Android
+- **Android** — WebView-приложение.
+- **Windows** — Go desktop-приложение на Wails с нативным WebView2, NSIS `setup.exe` и встроенной проверкой/установкой обновлений.
 
-Откройте проект в Android Studio (Gradle 8.9, Android Gradle Plugin 8.7.3, JDK 17) либо в окружении с Android SDK:
+Содержимое руководства меняйте в `windows/frontend/index.html`: Android Gradle включает этот файл как asset, Windows встраивает его в Go-приложение. UI и поиск поэтому остаются общими для обеих платформ.
+
+## GitHub Actions
+
+Workflow `.github/workflows/android-release.yml` использует общий `GITHUB_RUN_NUMBER` для обеих версий: `versionCode` и суффикс `versionName` совпадают.
+
+На push в `main` или `arena/**` Actions собирает и сохраняет на 90 дней:
+
+- Android debug APK для проверки.
+- Windows GUI `setup.exe` и файл SHA-256 для проверки загрузки.
+
+Для публикации релиза запустите workflow вручную и установите `Publish signed Android APK and Windows setup to GitHub Releases = true`. Windows setup добавится к тому же GitHub Release, что и Android APK. Приложения ищут новый выпуск на публичной странице GitHub Releases. Windows updater скачивает setup внутри приложения, сверяет SHA-256 и запускает NSIS installer в тихом режиме; установщик настроен на per-user установку. Android использует системный установщик и требует подтверждения пользователя.
+
+**Подпись Android-релиза:** добавьте в GitHub → Settings → Secrets and variables → Actions секреты `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Без них workflow всё равно собирает Android debug APK и Windows setup artifact, но публикация общего production Release остановится на проверке ключа.
+
+Приватный ключ подписи не хранится в Git-файлах. Создайте его один раз в защищённой среде, сохраните резервную копию в менеджере секретов и загрузите keystore только как GitHub Actions Secret. Не меняйте ключ между Android-релизами. Windows `.exe` сейчас не Authenticode-подписан; для публичного распространения без предупреждений SmartScreen понадобится отдельный сертификат подписи кода.
+
+## Сборка вручную
+
+### Android
+
+Android Studio (Gradle 8.9, AGP 8.7.3, JDK 17) либо установленный Android SDK:
 
 ```bash
 gradle assembleDebug
 ```
 
-APK появится в `app/build/outputs/apk/debug/`.
+### Windows
 
-## Релизы и автообновление
+Windows 10/11, Go 1.24+, Node.js LTS, GCC/MinGW, WebView2 SDK и NSIS:
 
-GitHub Actions на push в `main` или `arena/**` собирает debug APK для проверки проекта. `versionCode` — порядковый `GITHUB_RUN_NUMBER`, `versionName` — `1.0.<номер запуска>`. Артефакт CI хранится 90 дней. Подписанный release APK собирается при ручном запуске workflow с включённой публикацией и только после настройки секретов подписи.
-
-Чтобы опубликовать версию для встроенного обновлятора, запустите workflow вручную и задайте `Publish this signed build as a GitHub Release for in-app updates = true`. Action создаст GitHub Release с тегом `v1.0.<номер>` и APK. Приложение автоматически проверяет последний опубликованный Release при запуске; пользователь также может запустить проверку кнопкой. Для обновлений репозиторий и GitHub Releases должны быть публичными: персональный токен GitHub в приложение не встраивается.
-
-**Ограничение Android:** sideload-приложение не может незаметно установить обновление само. После загрузки APK внутри приложения Android попросит разрешить установку неизвестных приложений для GP Guide и показать системный диалог установки; пользователь подтверждает обновление. Это не скачивание в браузер, но файл APK загружается приложением во внутреннее хранилище для системного установщика. Полностью автоматические установки доступны через Google Play In-App Updates либо для устройств, которыми управляет MDM/device-owner.
-
-## Безопасное хранение ключа подписи
-
-Я не добавляю приватный keystore в Git-репозиторий: такой ключ нельзя публиковать в исходниках. Украденный ключ позволяет подписывать вредоносные обновления от имени приложения; раскрытие его в истории Git невозможно надёжно отменить. Workflow получает постоянный ключ только из GitHub Actions Secrets.
-
-Добавьте в GitHub → Settings → Secrets and variables → Actions:
-
-- `ANDROID_KEYSTORE_BASE64` — keystore в Base64 (`base64 -w 0 release.jks` на Linux; `base64 < release.jks | tr -d '\n'` на macOS).
-- `ANDROID_KEYSTORE_PASSWORD` — пароль keystore.
-- `ANDROID_KEY_ALIAS` — alias.
-- `ANDROID_KEY_PASSWORD` — пароль ключа.
-
-Создайте keystore один раз в защищённой среде и сохраните зашифрованную резервную копию, например:
-
-```bash
-keytool -genkeypair -v -keystore release.jks -alias gp-guide \
-  -keyalg RSA -keysize 3072 -validity 10000
+```powershell
+cd windows
+go mod tidy
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.17.1
+wails build -platform windows/amd64 -nsis
 ```
 
-Добавляйте в GitHub только его Base64-значение как Secret, не в файлы/логи. Не меняйте keystore между выпусками: Android примет обновление только если подпись совместима с установленным приложением. Потеря ключа может сделать обновление установленных sideload-копий невозможным. Для Google Play включите Play App Signing и отдельно сохраните upload key.
+Setup создаётся в `windows/build/bin/`. CI автоматически устанавливает необходимые Go/Wails/NSIS инструменты на Windows runner и Android SDK-компоненты на Linux runner.
 
-## Источники
+## Справочник и источники
+
+Материалы по созданию GPO, LSDOU, Security/WMI filtering, `gpresult`, `gpupdate`, приоритетам, loopback, SYSVOL/DFSR и безопасному production rollout основаны на документации Microsoft Learn:
 
 - [Group Policy processing](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/group-policy/group-policy-processing)
 - [Group Policy Management Console](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/group-policy/group-policy-management-console)
 - [Applying Group Policy troubleshooting guidance](https://learn.microsoft.com/en-us/troubleshoot/windows-server/group-policy/applying-group-policy-troubleshooting-guidance)
 - [Group Policy WMI filters troubleshooting](https://learn.microsoft.com/en-us/troubleshoot/windows-server/group-policy/group-policy-wmi-filters-denied-slow-logon-boot)
-- [Group Policy error events 7016/1091/1202](https://learn.microsoft.com/en-us/troubleshoot/windows-server/group-policy/group-policy-error-7016-1091-1202)
 
-Справочник — практическая отправная точка, а не замена проверке в вашей среде и официальной документации конкретной версии Windows Server/client.
+Примеры — практическая отправная точка; проверяйте их в своей среде и на целевых версиях Windows.

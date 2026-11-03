@@ -1,0 +1,9 @@
+{
+  "name": "gp-guide-windows-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js"
+  }
+}

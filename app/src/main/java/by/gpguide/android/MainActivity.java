@@ -71,12 +71,6 @@ public class MainActivity extends Activity {
                 return routeUrl(Uri.parse(url));
             }
 
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                Uri page = Uri.parse(url);
-                if ("file".equals(page.getScheme()) && "/android_asset/index.html".equals(page.getPath())) checkForUpdates();
-            }
         });
         setContentView(webView);
         webView.loadUrl("file:///android_asset/index.html");

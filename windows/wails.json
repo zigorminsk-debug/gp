@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "GP Guide",
+  "outputfilename": "GPGuide",
+  "frontend:install": "npm install --no-audit --no-fund",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "",
+  "info": {
+    "companyName": "GP Guide",
+    "productName": "GP Guide",
+    "productVersion": "1.0.1",
+    "copyright": "Copyright GP Guide",
+    "comments": "Windows Group Policy reference"
+  },
+  "author": {
+    "name": "GP Guide",
+    "email": ""
+  }
+}

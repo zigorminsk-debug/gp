@@ -13,6 +13,15 @@ android {
         buildConfig true
     }
 
+    sourceSets {
+        main {
+            assets {
+                srcDir '../windows/frontend'
+                include 'index.html'
+            }
+        }
+    }
+
     defaultConfig {
         applicationId 'by.gpguide.android'
         minSdk 23
