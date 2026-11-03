@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           LOG="$RUNNER_TEMP/gradle-build.log"
-          if gradle --no-daemon --stacktrace assembleDebug >"$LOG" 2>&1; then
+          if gradle --no-daemon --stacktrace -PappVersionCode="$VERSION_CODE" -PappVersionName="$VERSION_NAME" assembleDebug >"$LOG" 2>&1; then
             cat "$LOG"
           else
             cat "$LOG"
@@ -111,7 +111,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle --no-daemon --stacktrace assembleRelease
+        run: gradle --no-daemon --stacktrace -PappVersionCode="$VERSION_CODE" -PappVersionName="$VERSION_NAME" assembleRelease
 
       - name: Name the signed APK
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true
