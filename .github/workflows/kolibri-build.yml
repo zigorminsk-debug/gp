@@ -1,0 +1,84 @@
+# Этот файл создаёт и обновляет Kolibri Forge. Ручные правки будут перезаписаны.
+name: Kolibri Build
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kolibri-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (source)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: |
+          if [ -f Makefile ] || [ -f makefile ]; then make; fi
+          mkdir -p dist
+          rsync -a --exclude dist --exclude .git --exclude .github ./ dist/
+      - name: Upload build
+        uses: actions/upload-artifact@v7
+        with:
+          name: gp-source
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # Each artifact is fetched by name into a folder of its own: without a
+      # name the layout depends on how many artifacts the run has.
+      - name: Download gp-source
+        uses: actions/download-artifact@v8
+        with:
+          name: gp-source
+          path: artifacts/gp-source
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: build-${{ github.run_number }}
+          TITLE: "Сборка №${{ github.run_number }}"
+          NOTES: ${{ github.event.head_commit.message }}
+        run: |
+          # A failure here is reported as an annotation, which Kolibri Forge
+          # shows to the user: the build itself is good at this point.
+          fail() {
+            echo "::error title=Release::$(printf '%s' "$1" | tr '\r\n' '  ' | cut -c1-600 | sed 's/%/%25/g')"
+            exit 1
+          }
+          cd artifacts || fail "The build left no files to publish."
+          shopt -s nullglob
+          # Artifacts lose the executable bit; restore it for binaries and scripts.
+          find . -type f | while IFS= read -r f; do
+            case "$(head -c 4 "$f" | od -An -tx1 | tr -d ' \n')" in
+              7f454c46|cffaedfe|cafebabe|2321*) chmod +x "$f" ;;
+            esac
+          done
+          for d in */; do
+            d="${d%/}"
+            apks=("$d"/*.apk)
+            if [ "${#apks[@]}" -gt 0 ]; then
+              # An APK is published as it is: a phone installs it directly.
+              cp "${apks[@]}" . || fail "Could not copy the APK from $d."
+              continue
+            fi
+            (cd "$d" && zip -qr "../$d.zip" .) || fail "Could not pack $d."
+          done
+          archives=(./*.zip ./*.apk)
+          [ "${#archives[@]}" -gt 0 ] || fail "The build left no files to publish."
+          if ! out="$(gh release create "$TAG" "${archives[@]}" --target "$GITHUB_SHA" --title "$TITLE" --notes "${NOTES:-Автоматическая сборка}" 2>&1)"; then
+            echo "$out"
+            fail "$out"
+          fi
+          echo "$out"
