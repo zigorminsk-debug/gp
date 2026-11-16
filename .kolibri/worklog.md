@@ -8,3 +8,4 @@
 - **Модель:** qwen3.6-colibri
 - **Сделано:** Fix typos and add description to README
 - **Файлы:** `~ README.md`
+- **Итог:** сборка прошла — https://github.com/zigorminsk-debug/gp/actions/runs/43816921841; релиз https://github.com/zigorminsk-debug/gp/releases/tag/build-1
